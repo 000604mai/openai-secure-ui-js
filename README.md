@@ -41,6 +41,7 @@ This satisfies the common enterprise Azure Policy
 > `azd deploy api` must run from a client **inside the VNet** — see
 > [Deploying in a network-restricted (governed) subscription](#deploying-in-a-network-restricted-governed-subscription).
 
+![storage](docs/storage.png)
 #### Original  architecture
 
 ```mermaid
