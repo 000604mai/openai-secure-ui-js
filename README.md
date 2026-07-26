@@ -195,8 +195,25 @@ You will also need to have [Docker](https://www.docker.com/products/docker-deskt
 
 [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/000604mai/openai-secure-ui-js)
 
-> [!NOTE] 
-> updated from original repository, you can also use Azure CLI.
+### Use Azure Cloud Shell
+
+You can also run this project directly from [Azure Cloud Shell](https://learn.microsoft.com/azure/cloud-shell/overview),
+a browser-based shell that already has `git`, Node.js, and the Azure CLI / `azd` preinstalled — no local setup required.
+
+1. Open [https://shell.azure.com](https://shell.azure.com) (or click the **Cloud Shell** icon in the Azure portal) and choose **Bash**.
+2. Clone the repo and enter it:
+   ```bash
+   git clone https://github.com/000604mai/openai-secure-ui-js.git
+   cd openai-secure-ui-js
+   ```
+3. Run `azd auth login`, then `azd up` to provision and deploy.
+
+> [!TIP]
+> Cloud Shell is especially useful for **network-restricted (governed) subscriptions**: a
+> **VNet-integrated** Cloud Shell can act as an in-VNet foothold to reach private-endpoint-only
+> resources during `azd deploy api`. See
+> [Deploying in a network-restricted (governed) subscription](#deploying-in-a-network-restricted-governed-subscription).
+
 
 ## Use your local environment
 
@@ -515,16 +532,24 @@ and [Flex Consumption plan networking](https://learn.microsoft.com/azure/azure-f
 **What this means for deployment:** `azd deploy api` uploads the app package to the
 deployment storage account. Since that account is private-endpoint-only, the upload must
 originate from a client that is **inside the VNet**. A machine outside the VNet — including
-**Azure Cloud Shell** — cannot reach the storage account and the deploy will fail with a
-`403`/network error.
+the **default Azure Cloud Shell** (which is *not* attached to your VNet) — cannot reach the
+storage account and the deploy will fail with a `403`/network error.
 
 To deploy `api` in a governed subscription, run `azd` from a client with a network path
 into the VNet, for example:
 
 - A **jumpbox VM** deployed into a subnet of the same VNet (`vnet-*`), with `azd`, Node.js,
-  and the Azure CLI installed, or
+  and the Azure CLI installed,
 - A **CI/CD runner** (GitHub Actions self-hosted runner or Azure DevOps agent) that is
-  **VNet-integrated** into the same network.
+  **VNet-integrated** into the same network, or
+- A **VNet-integrated Azure Cloud Shell** — a Cloud Shell attached to the same VNet, which
+  acts as a foothold inside the network. **This is what was used here.**
+
+> [!NOTE]
+> To reach internal resources (such as the private-endpoint-only storage account), you must go
+> **through a foothold inside the VNet**. This foothold is typically a **Bastion or jump server
+> (踏み台)**. Here, a **VNet-integrated Azure Cloud Shell** was used as that in-VNet foothold, and
+> `azd deploy api` was run from it.
 
 `azd provision` (creating/updating the infrastructure) can still be run from anywhere,
 since it only calls the Azure control plane. It is only the `azd deploy api` step (data-plane
