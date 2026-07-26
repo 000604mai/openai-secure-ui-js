@@ -30,7 +30,109 @@ Building AI applications can be complex and time-consuming, but using accelerato
   <img src="./docs/images/architecture-secure.drawio.png" alt="Application architecture" width="640px" />
 </div>
 
-This application is made from multiple components:
+> [!NOTE]
+> **This template's architecture was updated to follow storage network-security best practices.**
+> The Function App's deployment storage account now has **public network access disabled** and is
+> reached exclusively through **private endpoints** (blob, queue, and table) inside the virtual
+> network, with matching **private DNS zones**. This satisfies the common enterprise Azure Policy
+> _"Storage accounts should disable public network access"_ (which is enforced as a **Deny** in many
+> governed subscriptions), so no keys or public storage endpoints are exposed. The trade-off is that
+> `azd deploy api` must run from a client **inside the VNet** — see
+> [Deploying in a network-restricted (governed) subscription](#deploying-in-a-network-restricted-governed-subscription).
+
+#### Previous architecture (before the change)
+
+Previously, the deployment storage account had **public network access enabled** (allowed via a
+service-endpoint VNet rule), so the Function App could reach it over its public endpoint and
+`azd deploy api` worked from anywhere — including Azure Cloud Shell. This is simpler, but it is
+**rejected by the "Storage accounts should disable public network access" Deny policy** used in
+many governed subscriptions.
+
+```mermaid
+flowchart LR
+    user([User browser])
+
+    subgraph swa[Azure Static Web Apps]
+        webapp[Web app + Easy Auth]
+    end
+
+    subgraph vnet[Virtual Network]
+        subgraph appsubnet[app subnet]
+            func[Function App API<br/>Flex Consumption<br/>VNet-integrated]
+        end
+    end
+
+    storage[[Storage account<br/>public access ENABLED<br/>service-endpoint rule]]
+    openai[Azure OpenAI<br/>AI Services]
+    monitor[Application Insights<br/>+ Log Analytics]
+
+    user -->|HTTPS| webapp
+    webapp -->|HTTP chat protocol<br/>linked backend| func
+    func -->|Managed Identity<br/>keyless| openai
+    func -->|public endpoint| storage
+    func -.telemetry.-> monitor
+```
+
+#### Updated architecture (after the change)
+
+The updated secure architecture looks like this:
+
+```mermaid
+flowchart LR
+    user([User browser])
+
+    subgraph swa[Azure Static Web Apps]
+        webapp[Web app + Easy Auth]
+    end
+
+    subgraph vnet[Virtual Network]
+        direction TB
+        subgraph appsubnet[app subnet]
+            func[Function App API<br/>Flex Consumption<br/>VNet-integrated]
+        end
+        subgraph pesubnet[private-endpoints subnet]
+            peBlob[(PE: blob)]
+            peQueue[(PE: queue)]
+            peTable[(PE: table)]
+        end
+    end
+
+    storage[[Storage account<br/>public access DISABLED]]
+    openai[Azure OpenAI<br/>AI Services]
+    monitor[Application Insights<br/>+ Log Analytics]
+
+    user -->|HTTPS| webapp
+    webapp -->|HTTP chat protocol<br/>linked backend| func
+    func -->|Managed Identity<br/>keyless| openai
+    func -->|private DNS| peBlob --> storage
+    func --> peQueue --> storage
+    func --> peTable --> storage
+    func -.telemetry.-> monitor
+```
+
+### Azure resources
+
+Every `azd up` provisions the following resources inside the resource group:
+
+| Resource | Azure service | Purpose |
+| --- | --- | --- |
+| `stapp-*` | **Azure Static Web Apps** (Standard) | Hosts the frontend web app and provides **Easy Auth** (built-in login with GitHub, AAD, etc.) |
+| `func-api-*` | **Azure Functions** (Flex Consumption, Linux) | Serverless backend API — handles chat requests and calls Azure OpenAI |
+| `asp-*` | **App Service Plan** (Flex Consumption FC1) | The compute plan that backs the Function App |
+| `st*` | **Storage Account** (Standard LRS) | Required by Azure Functions for deployment package, runtime state (blob), triggers (queue), and metadata (table). Public access is **disabled** — reached only via private endpoints |
+| `vnet-*` | **Virtual Network** (`10.0.0.0/16`) | Isolates the backend; the Function App is VNet-integrated inside the `app` subnet |
+| `pep-blob-*` | **Private Endpoint** (blob) | Lets the Function App reach the storage account's Blob service privately |
+| `pep-queue-*` | **Private Endpoint** (queue) | Lets the Function App reach the storage account's Queue service privately |
+| `pep-table-*` | **Private Endpoint** (table) | Lets the Function App reach the storage account's Table service privately |
+| `privatelink.blob.*` | **Private DNS Zone** | Resolves `<account>.blob.core.windows.net` to the private blob endpoint IP |
+| `privatelink.queue.*` | **Private DNS Zone** | Resolves `<account>.queue.core.windows.net` to the private queue endpoint IP |
+| `privatelink.table.*` | **Private DNS Zone** | Resolves `<account>.table.core.windows.net` to the private table endpoint IP |
+| `oai-*` | **Azure OpenAI** (AI Services, S0) | Hosts the GPT model deployment; accessed by the Function App via **Managed Identity** (no keys) |
+| `appi-*` | **Application Insights** | Collects telemetry (requests, exceptions, traces) from the Function App |
+| `log-*` | **Log Analytics Workspace** | Backend store for Application Insights data |
+| `dash-*` | **Azure Portal Dashboard** | Pre-built dashboard wired to Application Insights metrics |
+
+
 
 - Reusable and customizable web components built with [Lit](https://lit.dev) handling user authentication and providing an AI chat UI. The code is located in the `packages/ai-chat-components` folder.
 
@@ -39,6 +141,21 @@ This application is made from multiple components:
 - A serverless API built with [Azure Functions](https://learn.microsoft.com/azure/azure-functions/functions-overview?pivots=programming-language-javascript) and using [OpenAI SDK](https://github.com/openai/openai-node) to generate responses to the user chat queries. The code is located in the `packages/api` folder.
 
 We use the [HTTP protocol for AI chat apps](https://aka.ms/chatprotocol) to communicate between the web app and the API.
+
+### Monorepo structure
+
+This repo is a **monorepo**: multiple independent Node.js projects ("packages") live together under one `packages/` folder, each with its own `package.json` and dependencies. 
+The root `package.json` ties them together using npm **workspaces**, so a single `npm install` at the root installs everything. The root `azure.yaml` maps each package to its Azure host.
+
+| Package | Purpose |
+| --- | --- |
+| `packages/api` | Azure Functions backend (TypeScript) |
+| `packages/webapp-html` | Plain HTML frontend |
+| `packages/webapp-react` | React frontend |
+| `packages/webapp-vue` | Vue frontend |
+| `packages/webapp-angular` | Angular frontend |
+| `packages/webapp-svelte` | Svelte frontend |
+| `packages/ai-chat-components` | Reusable web components shared by all frontends |
 
 ## Features
 
@@ -110,6 +227,25 @@ There are multiple ways to run this sample: locally using Ollama or Azure OpenAI
     ```
   - Your Azure account also needs `Microsoft.Resources/deployments/write` permissions on the subscription level.
 
+> [!NOTE]
+> This template deploys the `gpt-5-mini` model (version `2025-08-07`), which isn't available in every
+> region. Before you run `azd up`, check that the model and version are available in your target region
+> (replace `eastus2` with your region):
+>
+> ```bash
+> az cognitiveservices model list \
+>   --location eastus2 \
+>   --query "[?kind=='OpenAI'].{Name:model.name, Version:model.version, Format:model.format}" \
+>   -o table
+> ```
+>
+> If the version isn't listed, pick an available one from the output and override the defaults before deploying:
+>
+> ```bash
+> azd env set AZURE_OPENAI_API_MODEL gpt-5-mini
+> azd env set AZURE_OPENAI_API_MODEL_VERSION <an-available-version>
+> ```
+
 #### Cost estimation
 
 See the [cost estimation](./docs/cost.md) details for running this sample on Azure.
@@ -143,6 +279,24 @@ The deployment process will take a few minutes. Once it's done, you'll see the U
 </div>
 
 You can now open the web app in your browser and start chatting with the bot.
+
+##### How `azd up` works
+
+`azd up` is a shortcut that runs three steps in sequence, driven by two files at the root of the project:
+
+- **`azure.yaml`** — the orchestration map. It tells `azd` what your app is made of (the `webapp` and `api` services, their folders, and their Azure hosts), and defines the `hooks` (custom commands) to run at specific stages.
+- **`infra/main.bicep`** — the infrastructure blueprint. It describes the Azure resources to create (Azure OpenAI, Function App, Static Web App, Virtual Network, etc.) using Bicep, Azure's Infrastructure as Code language.
+
+When you run `azd up`, it performs the following steps:
+
+1. **Provision** (`azd provision`) — reads `infra/main.bicep` and creates the Azure resources.
+2. **Package** (`azd package`) — builds each service's code (this is where the `prepackage` hook in `azure.yaml` runs `npm ci && npm run build:wc`).
+3. **Deploy** (`azd deploy`) — uploads the built code to the resources created in step 1.
+
+The `hooks` in `azure.yaml` run at specific points around these steps. For example, the `postprovision` hook writes the deployed resource values into `packages/api/.env` so you can also run the API locally.
+
+> [!TIP]
+> In short: `azure.yaml` describes **your app** to the `azd` tool, while `main.bicep` describes the **Azure infrastructure** your app runs on. They work together during `azd up`.
 
 ##### (Optional) Using a different framework for the webapp
 
@@ -241,9 +395,39 @@ You can find answers to frequently asked questions in the [FAQ](./docs/faq.md).
 
 ### Region availability
 
-This template uses model `gpt-4o-mini` which may not be available in all Azure regions. Check for [up-to-date region availability](https://learn.microsoft.com/azure/ai-services/openai/concepts/models#standard-deployment-model-availability) and select a region during deployment accordingly.
+This template uses model `gpt-5-mini` which may not be available in all Azure regions. Check for [up-to-date region availability](https://learn.microsoft.com/azure/ai-services/openai/concepts/models#standard-deployment-model-availability) and select a region during deployment accordingly.
 
 We recommend using `East US 2` if you're unsure of which region to choose.
+
+#### Note: choosing a valid Azure OpenAI model and version
+
+The model, model version, and API version are configurable via `azd` environment variables (defaults live in [`infra/main.parameters.json`](./infra/main.parameters.json)):
+
+| Setting | Env variable | Default |
+| --- | --- | --- |
+| Model name | `AZURE_OPENAI_API_MODEL` | `gpt-5-mini` |
+| Model version | `AZURE_OPENAI_API_MODEL_VERSION` | `2025-08-07` |
+| API version | `AZURE_OPENAI_API_VERSION` | `2024-02-01` |
+
+Model versions get **deprecated over time**. If `azd up` fails during provisioning with an error like:
+
+```
+ServiceModelDeprecating: The model 'Format:OpenAI,Name:gpt-5-mini,Version:2025-08-07' is in deprecating state and cannot be used for new deployments.
+```
+
+it means the pinned version is no longer accepted for new deployments. To fix it, list the models currently available in your region and pick a non-deprecated one (check the `Deprecates` column):
+
+```bash
+az cognitiveservices model list -l eastus2 --query "sort_by([?kind=='OpenAI' && starts_with(model.name,'gpt')].{Name:model.name, Version:model.version, Deprecates:model.deprecation.inference}, &Name)" -o table
+```
+
+Then override the values (no file edit required) and redeploy:
+
+```bash
+azd env set AZURE_OPENAI_API_MODEL <a-non-deprecated-model>
+azd env set AZURE_OPENAI_API_MODEL_VERSION <a-non-deprecated-version>
+azd up
+```
 
 ### Security
 
@@ -254,6 +438,69 @@ This template has [Managed Identity](https://learn.microsoft.com/entra/identity/
 This template has [Managed Identity](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview) built in to eliminate the need for developers to manage these credentials. Applications can use managed identities to obtain Microsoft Entra tokens without having to handle any secrets in the code. Additionally, we're using [Microsoft Security DevOps GitHub Action](https://github.com/microsoft/security-devops-action) to scan the infrastructure-as-code files and generates a report containing any detected issues.
 
 You can Learn more about using Managed Identity with Azure OpenAI in this [tutorial](https://learn.microsoft.com/training/modules/intro-azure-openai-managed-identity-auth-javascript/).
+
+### Deploying in a network-restricted (governed) subscription
+
+This template is **secure by default**: the Function App runs on the Flex Consumption plan
+and its deployment storage account has **public network access disabled**. The storage
+account is reached only through **private endpoints** (blob, queue, and table) that live in
+the `private-endpoints` subnet of the VNet, with matching **private DNS zones** so the
+`privatelink.*.core.windows.net` names resolve to private IPs from inside the VNet.
+
+This design satisfies the common enterprise Azure Policy
+**"Storage accounts should disable public network access"** (built-in
+`b2982f36-99f2-4db5-8eff-283140c09693`), which is assigned as a **Deny** in many corporate
+subscriptions. Because of this, you **cannot** simply enable public access on the storage
+account — the policy will reject it.
+
+#### Why three private endpoints (blob, queue, and table)?
+
+A storage account exposes each service on its **own hostname and private-link sub-resource**, and
+a single private endpoint only covers **one** service (`groupId`). When public access is disabled,
+any service **without** a private endpoint stops resolving to a private IP and becomes unreachable:
+
+| Service | Hostname | Private DNS zone |
+| --- | --- | --- |
+| Blob | `<account>.blob.core.windows.net` | `privatelink.blob.core.windows.net` |
+| Queue | `<account>.queue.core.windows.net` | `privatelink.queue.core.windows.net` |
+| Table | `<account>.table.core.windows.net` | `privatelink.table.core.windows.net` |
+
+Azure Functions on the **Flex Consumption** plan uses all three services on this account:
+
+- **Blob** — holds the **deployment package** (`azd deploy api` uploads here) and is used by
+  `AzureWebJobsStorage` for the host's internal state.
+- **Queue** — used by the Functions host/runtime for internal coordination and by queue-based triggers.
+- **Table** — used by the host for metadata/state (e.g. trigger receipts and lease/partition tracking).
+
+If you only create the blob private endpoint, provisioning may appear to succeed but the host can
+intermittently fail to start or run because it can't reach queue/table. Creating all three (plus
+their DNS zones) is the supported "secure by default" configuration. For details, see Microsoft's
+[Azure Functions networking options — restrict your storage account to a virtual network](https://learn.microsoft.com/azure/azure-functions/functions-networking-options#restrict-your-storage-account-to-a-virtual-network)
+and [Flex Consumption plan networking](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan#networking).
+
+**What this means for deployment:** `azd deploy api` uploads the app package to the
+deployment storage account. Since that account is private-endpoint-only, the upload must
+originate from a client that is **inside the VNet**. A machine outside the VNet — including
+**Azure Cloud Shell** — cannot reach the storage account and the deploy will fail with a
+`403`/network error.
+
+To deploy `api` in a governed subscription, run `azd` from a client with a network path
+into the VNet, for example:
+
+- A **jumpbox VM** deployed into a subnet of the same VNet (`vnet-*`), with `azd`, Node.js,
+  and the Azure CLI installed, or
+- A **CI/CD runner** (GitHub Actions self-hosted runner or Azure DevOps agent) that is
+  **VNet-integrated** into the same network.
+
+`azd provision` (creating/updating the infrastructure) can still be run from anywhere,
+since it only calls the Azure control plane. It is only the `azd deploy api` step (data-plane
+upload to private storage) that must run from inside the VNet.
+
+> [!TIP]
+> If your organization instead grants you a policy **exemption** for the storage account,
+> you could allow public access with IP/service-endpoint rules — but the exemption route is
+> usually not available in governed subscriptions, so the private-endpoint path above is the
+> supported approach.
 
 ### Troubleshooting
 
