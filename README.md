@@ -3,18 +3,18 @@
 
 <img src="./docs/images/secure-chat.png" alt="" align="center" height="64" />
 
-# Azure OpenAI secure UI starter
+# Azure OpenAI secure UI hands-on kit
 
-[![Open project in GitHub Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?style=flat-square&logo=github)](https://codespaces.new/Azure-Samples/openai-secure-ui-js?hide_repo_select=true&ref=main&quickstart=true)
+[![Open project in GitHub Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?style=flat-square&logo=github)](https://codespaces.new/000604mai/openai-secure-ui-js?hide_repo_select=true&ref=main&quickstart=true)
 [![Watch to learn more about GenAI with JS on YouTube](https://img.shields.io/badge/YouTube-d95652.svg?style=flat-square&logo=youtube)](https://www.youtube.com/playlist?list=PLlrxD0HtieHi5ZpsHULPLxm839IrhmeDk)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/Azure-Samples/openai-secure-ui-js/ci.yml?style=flat-square&label=Build)](https://github.com/Azure-Samples/openai-secure-ui-js/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/000604mai/openai-secure-ui-js/ci.yml?style=flat-square&label=Build)](https://github.com/000604mai/openai-secure-ui-js/actions)
 ![Node version](https://img.shields.io/badge/Node.js->=20-3c873a?style=flat-square)
 [![TypeScript](https://img.shields.io/badge/TypeScript-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
 :star: If you like this sample, star it on GitHub — it helps a lot!
 
-[Overview](#overview) • [Get started](#getting-started) • [Run the sample](#run-the-sample) • [Resources](#resources) • [FAQ](#faq) • [Guidance](#guidance)
+[Overview](#overview) • [Get started](#getting-started) • [Hands-on kit](#hands-on-kit) • [Run the sample](#run-the-sample) • [Resources](#resources) • [FAQ](#faq) • [Guidance](#guidance)
 
 ![Animation showing the app in action](./docs/images/demo.gif)
 
@@ -34,19 +34,14 @@ Building AI applications can be complex and time-consuming, but using accelerato
 > **This template's architecture was updated to follow storage network-security best practices.**
 > The Function App's deployment storage account now has **public network access disabled** and is
 > reached exclusively through **private endpoints** (blob, queue, and table) inside the virtual
-> network, with matching **private DNS zones**. This satisfies the common enterprise Azure Policy
+> network, with matching **private DNS zones**. 
+This satisfies the common enterprise Azure Policy
 > _"Storage accounts should disable public network access"_ (which is enforced as a **Deny** in many
 > governed subscriptions), so no keys or public storage endpoints are exposed. The trade-off is that
 > `azd deploy api` must run from a client **inside the VNet** — see
 > [Deploying in a network-restricted (governed) subscription](#deploying-in-a-network-restricted-governed-subscription).
 
-#### Previous architecture (before the change)
-
-Previously, the deployment storage account had **public network access enabled** (allowed via a
-service-endpoint VNet rule), so the Function App could reach it over its public endpoint and
-`azd deploy api` worked from anywhere — including Azure Cloud Shell. This is simpler, but it is
-**rejected by the "Storage accounts should disable public network access" Deny policy** used in
-many governed subscriptions.
+#### Original  architecture
 
 ```mermaid
 flowchart LR
@@ -73,7 +68,7 @@ flowchart LR
     func -.telemetry.-> monitor
 ```
 
-#### Updated architecture (after the change)
+#### Updated architecture
 
 The updated secure architecture looks like this:
 
@@ -132,8 +127,6 @@ Every `azd up` provisions the following resources inside the resource group:
 | `log-*` | **Log Analytics Workspace** | Backend store for Application Insights data |
 | `dash-*` | **Azure Portal Dashboard** | Pre-built dashboard wired to Application Insights metrics |
 
-
-
 - Reusable and customizable web components built with [Lit](https://lit.dev) handling user authentication and providing an AI chat UI. The code is located in the `packages/ai-chat-components` folder.
 
 - Example web app integrations of the web components, hosted on [Azure Static Web Apps](https://learn.microsoft.com/azure/static-web-apps/overview). There are example using [static HTML](./packages/webapp-html/), [React](./packages/webapp-react/), [Angular](./packages/webapp-angular/), [Vue](./packages/webapp-vue/) and [Svelte](./packages/webapp-svelte/).
@@ -157,14 +150,6 @@ The root `package.json` ties them together using npm **workspaces**, so a single
 | `packages/webapp-svelte` | Svelte frontend |
 | `packages/ai-chat-components` | Reusable web components shared by all frontends |
 
-## Features
-
-- **Secure deployments**: Uses Azure Managed Identity for keyless authentication and Azure Virtual Network to secure the backend resources.
-- **Reusable components**: Provides reusable web components for building secure AI chat applications.
-- **Serverless Architecture**: Utilizes Azure Functions and Azure Static Web Apps for a fully serverless deployment.
-- **Scalable and Cost-Effective**: Leverages Azure's serverless offerings to provide a scalable and cost-effective solution.
-- **Local Development**: Supports local development using Ollama for testing without any cloud costs.
-
 ## Getting started
 
 There are multiple ways to get started with this project.
@@ -187,19 +172,19 @@ You need to install following tools to work on your local machine:
 
 Then you can get the project code:
 
-1. [**Fork**](https://github.com/Azure-Samples/openai-secure-ui-js/fork) the project to create your own copy of this repository.
-2. On your forked repository, select the **Code** button, then the **Local** tab, and copy the URL of your forked repository.
+1. Open this repository and select the **Code** button.
+2. In the **Local** tab, copy the repository URL.
 
 <div align="center">
   <img src="./docs/images/clone-url.png" alt="Screenshot showing how to copy the repository URL" width="400px" />
 </div>
-3. Open a terminal and run this command to clone the repo: <code> git clone &lt;your-repo-url&gt; </code>
+3. Open a terminal and run this command to clone the repo: <code> git clone &lt;repo-url&gt; </code>
 
 ### Use GitHub Codespaces
 
 You can run this project directly in your browser by using GitHub Codespaces, which will open a web-based VS Code:
 
-[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=blue&logo=github)](https://codespaces.new/Azure-Samples/openai-secure-ui-js?hide_repo_select=true&ref&quickstart=true)
+[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=blue&logo=github)](https://codespaces.new/000604mai/openai-secure-ui-js?hide_repo_select=true&ref&quickstart=true)
 
 ### Use a VSCode dev container
 
@@ -207,7 +192,22 @@ A similar option to Codespaces is VS Code Dev Containers, that will open the pro
 
 You will also need to have [Docker](https://www.docker.com/products/docker-desktop) installed on your machine to run the container.
 
-[![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/Azure-Samples/openai-secure-ui-js)
+[![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/000604mai/openai-secure-ui-js)
+
+> [!NOTE] 
+> updated from original repository, you can also use Azure CLI.
+
+## Use your local environment
+
+## Hands-on kit
+
+This repository is structured as a practical hands-on kit for secure Azure OpenAI app delivery.
+
+- Participant guide: [docs/hands-on-kit.md](./docs/hands-on-kit.md)
+- Recommended format: 90 to 150 minute workshop
+- Lab flow: deploy baseline, validate security controls, implement one extension, and present outcomes
+
+If you are running a team session, use the guide as the single source of truth for prerequisites, timeline, checkpoints, and expected deliverables.
 
 ## Run the sample
 
@@ -228,8 +228,9 @@ There are multiple ways to run this sample: locally using Ollama or Azure OpenAI
   - Your Azure account also needs `Microsoft.Resources/deployments/write` permissions on the subscription level.
 
 > [!NOTE]
-> This template deploys the `gpt-5-mini` model (version `2025-08-07`), which isn't available in every
-> region. Before you run `azd up`, check that the model and version are available in your target region
+> This repository deploys the `gpt-5-mini` model (version `2025-08-07`), which isn't available in every
+> region. 
+Before you run `azd up`, check that the model and version are available in your target region
 > (replace `eastus2` with your region):
 >
 > ```bash
@@ -279,6 +280,38 @@ The deployment process will take a few minutes. Once it's done, you'll see the U
 </div>
 
 You can now open the web app in your browser and start chatting with the bot.
+
+#### Step-by-step guide: use the Web UI via Azure Static Web Apps
+
+After deployment, follow this flow to validate and use the hosted UI end to end.
+
+1. Get the Web UI URL.
+  - Use the URL printed by `azd up`, or run:
+  ```bash
+  azd env get-values | grep SERVICE_WEBAPP_URI
+  ```
+2. Open the URL in your browser.
+  - You should see the chat page hosted by Azure Static Web Apps.
+3. Sign in from the Web UI.
+  - Click the sign-in button and choose an enabled provider (for example GitHub or Microsoft Entra ID).
+  - After sign-in, confirm the UI shows your authenticated session.
+4. Send a test prompt.
+  - Example prompt: `Summarize this app architecture in 3 bullets.`
+  - The browser sends the request to the linked backend API route on Static Web Apps.
+5. Confirm API response and rendering.
+  - The assistant response should stream back into the chat panel.
+  - If the UI loads but answers fail, check API and identity settings first.
+6. Validate access behavior.
+  - Open a private/incognito window and access the same URL.
+  - Confirm the app enforces sign-in before chat access.
+
+Notes about the UI path:
+
+- The frontend is hosted by Azure Static Web Apps.
+- Authentication is handled by Static Web Apps Easy Auth.
+- The Web UI calls the Azure Functions backend through the configured linked API route.
+
+For a workshop-friendly version of this flow, see [docs/web-ui-guide.md](./docs/web-ui-guide.md).
 
 ##### How `azd up` works
 
@@ -504,7 +537,7 @@ upload to private storage) that must run from inside the VNet.
 
 ### Troubleshooting
 
-If you have any issue when running or deploying this sample, please check the [troubleshooting guide](./docs/troubleshooting.md). If you can't find a solution to your problem, please [open an issue](https://github.com/Azure-Samples/openai-secure-ui-js/issues) in this repository.
+If you have any issue when running or deploying this sample, please check the [troubleshooting guide](./docs/troubleshooting.md). If you can't find a solution to your problem, please [open an issue](https://github.com/000604mai/openai-secure-ui-js/issues) in this repository.
 
 ## Contributing
 

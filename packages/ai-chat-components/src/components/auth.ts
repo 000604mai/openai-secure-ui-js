@@ -10,6 +10,7 @@ import githubSvg from '../../assets/providers/github.svg?inline';
 const loginRoute = '/.auth/login';
 const logoutRoute = '/.auth/logout';
 const userDetailsRoute = '/.auth/me';
+const supportedProviders = new Set(['aad', 'github', 'google', 'facebook', 'apple', 'twitter', 'oidc']);
 
 export type AuthDetails = {
   identityProvider: string;
@@ -106,8 +107,26 @@ export class AuthComponent extends LitElement {
     });
   }
 
+  // Accept a few common aliases and safely fall back to a supported provider.
+  protected normalizeProvider(provider: string) {
+    const aliasMap: Record<string, string> = {
+      azureStaticWebApps: 'aad',
+      microsoft: 'aad',
+      entra: 'aad',
+      entraId: 'aad',
+    };
+    const resolved = aliasMap[provider] ?? provider;
+    if (supportedProviders.has(resolved)) {
+      return resolved;
+    }
+
+    const firstSupported = this.options.providers.find((p) => supportedProviders.has(p.id))?.id;
+    return firstSupported ?? 'aad';
+  }
+
   onLoginClicked(provider: string) {
-    const redirect = `${loginRoute}/${provider}?post_login_redirect_uri=${encodeURIComponent(this.loginRedirect)}`;
+    const resolvedProvider = this.normalizeProvider(provider);
+    const redirect = `${loginRoute}/${resolvedProvider}?post_login_redirect_uri=${encodeURIComponent(this.loginRedirect)}`;
     window.location.href = redirect;
   }
 

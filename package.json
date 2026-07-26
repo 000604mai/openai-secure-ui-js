@@ -17,11 +17,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Azure-Samples/openai-secure-js.git"
+    "url": "https://github.com/000604mai/openai-secure-ui-js.git"
   },
-  "homepage": "https://github.com/Azure-Samples/openai-secure-js",
+  "homepage": "https://github.com/000604mai/openai-secure-ui-js",
   "bugs": {
-    "url": "https://github.com/Azure-Samples/openai-secure-js/issues"
+    "url": "https://github.com/000604mai/openai-secure-ui-js/issues"
   },
   "keywords": [
     "azure",
