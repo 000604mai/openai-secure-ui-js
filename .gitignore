@@ -25,3 +25,4 @@ TODO
 
 # Private local notes (never commit)
 MEMO.local.md
+.redact_tmp.py
